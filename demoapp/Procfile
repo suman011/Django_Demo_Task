@@ -1,0 +1,2 @@
+web: gunicorn demoapp.wsgi --log-file -
+
