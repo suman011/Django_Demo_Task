@@ -1,0 +1,162 @@
+{% extends "rest_framework/base.html" %}
+{% load rest_framework %}
+
+{% block content %}
+<div class="request-info">
+    <div class="page-header">
+        <h1>
+            <span class="glyphicon glyphicon-list"></span> {{ name|default:"Task List" }}
+        </h1>
+        <p class="lead">Manage and view all your tasks</p>
+        <div class="api-actions" style="margin-top: 1rem;">
+            <a href="/" class="btn btn-success btn-sm">
+                <span class="glyphicon glyphicon-dashboard"></span> View Dashboard
+            </a>
+            <a href="/api/reports/tasks/" class="btn btn-info btn-sm">
+                <span class="glyphicon glyphicon-stats"></span> View Reports
+            </a>
+        </div>
+    </div>
+</div>
+
+{% if results %}
+<div class="response-info">
+    <div class="meta">
+        <div class="row">
+            <div class="col-md-6">
+                <strong>HTTP {{ request.method }}</strong> 
+                <code style="background: rgba(102, 126, 234, 0.1); padding: 0.25rem 0.5rem; border-radius: 4px;">{{ request.get_full_path }}</code>
+            </div>
+            <div class="col-md-6 text-right">
+                <strong>Status:</strong> <span class="label label-success" style="padding: 0.5rem 1rem; font-size: 0.9rem;">✓ 200 OK</span>
+                <strong style="margin-left: 1rem;">Count:</strong> <span style="color: #667eea; font-weight: 600;">{{ results|length }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div style="margin-top: 1.5rem;">
+        <h4 style="color: #667eea; margin-bottom: 1rem;">
+            <span class="glyphicon glyphicon-tasks"></span> Tasks ({{ results|length }})
+        </h4>
+        <div class="list-group" style="border-radius: 12px; overflow: hidden;">
+            {% for item in results %}
+            <div class="list-group-item" style="border-left: 4px solid {% if item.status == 'done' %}#10b981{% elif item.status == 'doing' %}#f59e0b{% else %}#3b82f6{% endif %};">
+                <div class="row" style="align-items: center;">
+                    <div class="col-md-8">
+                        <h4 class="list-group-item-heading" style="margin-top: 0; margin-bottom: 0.5rem;">
+                            <a href="{{ item.url }}" style="color: #333; text-decoration: none; font-weight: 600;">
+                                {{ item|get_item:name_field|default:item }}
+                            </a>
+                        </h4>
+                        {% if item|get_item:description_field %}
+                        <p class="list-group-item-text" style="color: #6b7280; margin-bottom: 0.5rem;">
+                            {{ item|get_item:description_field|truncatewords:20 }}
+                        </p>
+                        {% endif %}
+                        <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                            <span class="badge" style="background: {% if item.status == 'done' %}#10b981{% elif item.status == 'doing' %}#f59e0b{% else %}#3b82f6{% endif %}; padding: 0.4rem 0.8rem; border-radius: 6px;">
+                                {{ item.status|upper }}
+                            </span>
+                            {% if item.priority %}
+                            <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 0.4rem 0.8rem; border-radius: 6px;">
+                                Priority: {{ item.priority }}
+                            </span>
+                            {% endif %}
+                            {% if item.city %}
+                            <span class="badge" style="background: rgba(102, 126, 234, 0.1); color: #667eea; padding: 0.4rem 0.8rem; border-radius: 6px;">
+                                📍 {{ item.city }}
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-right">
+                        <a href="{{ item.url }}" class="btn btn-primary btn-sm" style="margin-bottom: 0.5rem;">
+                            <span class="glyphicon glyphicon-eye-open"></span> View Details
+                        </a>
+                        {% if item.city %}
+                        <br>
+                        <a href="/api/tasks/{{ item.id }}/weather/" class="btn btn-info btn-sm">
+                            <span class="glyphicon glyphicon-cloud"></span> Weather
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    {% if paginator %}
+    <div class="pagination-wrapper" style="margin-top: 2rem;">
+        {% paginator %}
+    </div>
+    {% endif %}
+</div>
+{% else %}
+<div class="response-info">
+    <div class="empty-state-message">
+        <h3>No tasks found</h3>
+        <p>Get started by creating your first task using the form below.</p>
+        <a href="/api/tasks/" class="btn btn-primary" style="margin-top: 1rem;">
+            <span class="glyphicon glyphicon-plus"></span> Create Your First Task
+        </a>
+    </div>
+</div>
+{% endif %}
+
+<div class="form-wrapper">
+    <div class="page-header">
+        <h2>
+            <span class="glyphicon glyphicon-plus"></span> Create New Task
+        </h2>
+        <p class="text-muted">Fill out the form below to add a new task to your list</p>
+        <div class="help-text">
+            Tip: Add a city name to enable weather information for your task!
+        </div>
+    </div>
+
+    <ul class="nav nav-tabs" role="tablist" style="margin-bottom: 1.5rem;">
+        <li role="presentation" class="active">
+            <a href="#html-form" aria-controls="html-form" role="tab" data-toggle="tab">
+                <span class="glyphicon glyphicon-edit"></span> HTML Form
+            </a>
+        </li>
+        <li role="presentation">
+            <a href="#raw-data" aria-controls="raw-data" role="tab" data-toggle="tab">
+                <span class="glyphicon glyphicon-code"></span> Raw JSON
+            </a>
+        </li>
+    </ul>
+
+    <div class="tab-content">
+        <div role="tabpanel" class="tab-pane active" id="html-form">
+            {% render_form serializer template_pack='rest_framework/vertical' %}
+        </div>
+
+        <div role="tabpanel" class="tab-pane" id="raw-data">
+            <form action="{{ request.get_full_path }}" method="post" novalidate>
+                {% csrf_token %}
+                <div class="form-group">
+                    <label>JSON Data:</label>
+                    <textarea class="form-control" name="raw_data" rows="10" placeholder='{
+  "title": "My Task",
+  "description": "Task description here",
+  "status": "todo",
+  "priority": 1,
+  "city": "New York"
+}'></textarea>
+                    <div class="help-text" style="margin-top: 0.5rem;">
+                        Enter valid JSON data to create a task. Status can be: "todo", "doing", or "done". Priority is 1-5 (1=high, 5=low).
+                    </div>
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <span class="glyphicon glyphicon-ok"></span> Submit JSON
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

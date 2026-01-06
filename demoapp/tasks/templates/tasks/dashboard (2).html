@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Task Dashboard - Modern Analytics</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+      * {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      }
+      
+      body {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 2rem 1rem;
+      }
+
+      .glass-card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+      }
+
+      .kpi-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+
+      .kpi-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 24px rgba(102, 126, 234, 0.4);
+      }
+
+      .stat-card {
+        background: white;
+        transition: all 0.3s ease;
+        border-left: 4px solid;
+      }
+
+      .stat-card:hover {
+        transform: translateX(5px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
+
+      .stat-card.todo { border-left-color: #3b82f6; }
+      .stat-card.doing { border-left-color: #f59e0b; }
+      .stat-card.done { border-left-color: #10b981; }
+
+      .loading-spinner {
+        border: 3px solid #f3f4f6;
+        border-top: 3px solid #667eea;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+
+      .fade-in {
+        animation: fadeIn 0.5s ease-in;
+      }
+
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      .chart-container {
+        position: relative;
+        height: 300px;
+        margin-top: 1rem;
+      }
+
+      .api-badge {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        transition: all 0.3s ease;
+      }
+
+      .api-badge:hover {
+        transform: scale(1.05);
+      }
+
+      code {
+        background: rgba(102, 126, 234, 0.1);
+        padding: 0.25rem 0.5rem;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        color: #667eea;
+        font-weight: 500;
+      }
+
+      .pulse {
+        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      }
+
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="max-w-7xl mx-auto">
+      <!-- Header -->
+      <div class="glass-card p-8 mb-6 fade-in">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 class="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent mb-2">
+              Task Dashboard
+            </h1>
+            <p class="text-gray-600">Real-time analytics and insights</p>
+          </div>
+          <div class="mt-4 md:mt-0">
+            <div class="flex flex-wrap gap-2">
+              <a href="/api/reports/tasks/" target="_blank" class="api-badge text-white px-4 py-2 rounded-lg text-sm font-medium inline-block">
+                📊 Reports API
+              </a>
+              <a href="/api/tasks/" target="_blank" class="api-badge text-white px-4 py-2 rounded-lg text-sm font-medium inline-block">
+                🔧 CRUD API
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- KPI Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div class="kpi-card glass-card p-6 text-white fade-in" style="animation-delay: 0.1s">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-purple-100 text-sm font-medium mb-1">Total Tasks</p>
+              <p class="text-3xl font-bold" id="total">
+                <span class="loading-spinner inline-block"></span>
+              </p>
+            </div>
+            <div class="text-4xl">📋</div>
+          </div>
+        </div>
+
+        <div class="stat-card todo glass-card p-6 fade-in" style="animation-delay: 0.2s">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-gray-500 text-sm font-medium mb-1">To Do</p>
+              <p class="text-3xl font-bold text-blue-600" id="todo-count">-</p>
+            </div>
+            <div class="text-4xl">📝</div>
+          </div>
+        </div>
+
+        <div class="stat-card doing glass-card p-6 fade-in" style="animation-delay: 0.3s">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-gray-500 text-sm font-medium mb-1">In Progress</p>
+              <p class="text-3xl font-bold text-amber-600" id="doing-count">-</p>
+            </div>
+            <div class="text-4xl">⚡</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Status Chart -->
+        <div class="glass-card p-6 fade-in" style="animation-delay: 0.4s">
+          <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+            <span class="mr-2">📊</span>
+            Tasks by Status
+          </h3>
+          <div class="chart-container">
+            <canvas id="statusChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Priority Chart -->
+        <div class="glass-card p-6 fade-in" style="animation-delay: 0.5s">
+          <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+            <span class="mr-2">🎯</span>
+            Tasks by Priority
+          </h3>
+          <div class="chart-container">
+            <canvas id="priorityChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Additional Stats -->
+      <div class="glass-card p-6 mt-6 fade-in" style="animation-delay: 0.6s">
+        <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+          <span class="mr-2">📈</span>
+          Quick Stats
+        </h3>
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-4" id="priority-stats">
+          <!-- Will be populated by JavaScript -->
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Chart.js configuration with modern colors
+      Chart.defaults.color = '#6b7280';
+      Chart.defaults.font.family = "'Inter', sans-serif";
+      Chart.defaults.font.size = 12;
+
+      const statusColors = {
+        'todo': { bg: 'rgba(59, 130, 246, 0.8)', border: 'rgba(59, 130, 246, 1)' },
+        'doing': { bg: 'rgba(245, 158, 11, 0.8)', border: 'rgba(245, 158, 11, 1)' },
+        'done': { bg: 'rgba(16, 185, 129, 0.8)', border: 'rgba(16, 185, 129, 1)' }
+      };
+
+      const priorityColors = [
+        { bg: 'rgba(239, 68, 68, 0.8)', border: 'rgba(239, 68, 68, 1)' }, // Priority 1 - High
+        { bg: 'rgba(245, 158, 11, 0.8)', border: 'rgba(245, 158, 11, 1)' }, // Priority 2
+        { bg: 'rgba(59, 130, 246, 0.8)', border: 'rgba(59, 130, 246, 1)' }, // Priority 3
+        { bg: 'rgba(139, 92, 246, 0.8)', border: 'rgba(139, 92, 246, 1)' }, // Priority 4
+        { bg: 'rgba(156, 163, 175, 0.8)', border: 'rgba(156, 163, 175, 1)' } // Priority 5 - Low
+      ];
+
+      let statusChart, priorityChart;
+
+      async function load() {
+        try {
+          const res = await fetch("/api/reports/tasks/");
+          if (!res.ok) throw new Error('Failed to fetch data');
+          
+          const data = await res.json();
+
+          // Update KPI
+          document.getElementById("total").innerHTML = `<span class="pulse">${data.total}</span>`;
+
+          // Update status counts
+          const statusCounts = {};
+          data.by_status.forEach(item => {
+            statusCounts[item.status] = item.count;
+          });
+          
+          document.getElementById("todo-count").textContent = statusCounts.todo || 0;
+          document.getElementById("doing-count").textContent = statusCounts.doing || 0;
+
+          // Status Chart - Bar Chart with gradient
+          const statusLabels = data.by_status.map(x => x.status.charAt(0).toUpperCase() + x.status.slice(1));
+          const statusData = data.by_status.map(x => x.count);
+          const statusBgColors = data.by_status.map(x => statusColors[x.status]?.bg || 'rgba(156, 163, 175, 0.8)');
+          const statusBorderColors = data.by_status.map(x => statusColors[x.status]?.border || 'rgba(156, 163, 175, 1)');
+
+          if (statusChart) statusChart.destroy();
+          statusChart = new Chart(document.getElementById("statusChart"), {
+            type: "bar",
+            data: {
+              labels: statusLabels,
+              datasets: [{
+                label: "Tasks",
+                data: statusData,
+                backgroundColor: statusBgColors,
+                borderColor: statusBorderColors,
+                borderWidth: 2,
+                borderRadius: 8,
+                borderSkipped: false,
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false },
+                tooltip: {
+                  backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                  padding: 12,
+                  titleFont: { size: 14, weight: 'bold' },
+                  bodyFont: { size: 13 },
+                  cornerRadius: 8,
+                }
+              },
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                  ticks: { precision: 0 }
+                },
+                x: {
+                  grid: { display: false }
+                }
+              }
+            }
+          });
+
+          // Priority Chart - Doughnut Chart
+          const pLabels = data.by_priority.map(x => `Priority ${x.priority}`);
+          const pData = data.by_priority.map(x => x.count);
+          const pBgColors = data.by_priority.map(x => priorityColors[x.priority - 1]?.bg || 'rgba(156, 163, 175, 0.8)');
+          const pBorderColors = data.by_priority.map(x => priorityColors[x.priority - 1]?.border || 'rgba(156, 163, 175, 1)');
+
+          if (priorityChart) priorityChart.destroy();
+          priorityChart = new Chart(document.getElementById("priorityChart"), {
+            type: "doughnut",
+            data: {
+              labels: pLabels,
+              datasets: [{
+                label: "Tasks",
+                data: pData,
+                backgroundColor: pBgColors,
+                borderColor: pBorderColors,
+                borderWidth: 2,
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  position: 'bottom',
+                  labels: {
+                    padding: 15,
+                    font: { size: 12 },
+                    usePointStyle: true,
+                  }
+                },
+                tooltip: {
+                  backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                  padding: 12,
+                  titleFont: { size: 14, weight: 'bold' },
+                  bodyFont: { size: 13 },
+                  cornerRadius: 8,
+                }
+              },
+              cutout: '60%'
+            }
+          });
+
+          // Priority Stats Cards
+          const priorityStatsContainer = document.getElementById("priority-stats");
+          priorityStatsContainer.innerHTML = '';
+          
+          data.by_priority.forEach(item => {
+            const priorityLevel = item.priority;
+            const count = item.count;
+            const color = priorityColors[priorityLevel - 1] || priorityColors[4];
+            const priorityLabel = priorityLevel === 1 ? 'Critical' : 
+                                 priorityLevel === 2 ? 'High' :
+                                 priorityLevel === 3 ? 'Medium' :
+                                 priorityLevel === 4 ? 'Low' : 'Very Low';
+            
+            const card = document.createElement('div');
+            card.className = 'text-center p-4 rounded-lg';
+            card.style.background = `linear-gradient(135deg, ${color.bg.replace('0.8', '0.1')} 0%, ${color.bg.replace('0.8', '0.05')} 100%)`;
+            card.style.borderLeft = `4px solid ${color.border}`;
+            card.innerHTML = `
+              <div class="text-2xl font-bold mb-1" style="color: ${color.border}">${count}</div>
+              <div class="text-xs text-gray-600 font-medium">${priorityLabel}</div>
+            `;
+            priorityStatsContainer.appendChild(card);
+          });
+
+        } catch (err) {
+          console.error(err);
+          document.getElementById("total").innerHTML = '<span class="text-red-500">Failed to load</span>';
+          document.getElementById("total").parentElement.innerHTML += 
+            '<p class="text-sm text-purple-100 mt-2">Create some tasks first via the API</p>';
+        }
+      }
+
+      // Load data on page load
+      load();
+
+      // Auto-refresh every 30 seconds
+      setInterval(load, 30000);
+    </script>
+  </body>
+</html>
